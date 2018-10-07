@@ -29,20 +29,24 @@ initialState = State
   }
 
 goRight :: Behavior
-goRight e = e { position = (x+5, y) }
+goRight e = e { position = (x+3, y) }
  where (x,y) = position e
 
 window :: Display
-window = InWindow "EffectiveOctoFortnite" (200, 200) (10, 10)
+window = InWindow "EffectiveOctoFortnite" (700, 700) (10, 10)
 
 background :: Color
 background = light $ light blue
 
 drawing :: GameState -> Picture
-drawing state = circle 80
+drawing state = uncurry translate (position (player state)) (circleSolid 15)
 
 update :: Float -> GameState -> GameState
-update ticks state = state
+update ticks state = state { player = updateEntity (player state) }
+
+updateEntity :: Entity -> Entity
+updateEntity ent = firstBehavior ent
+  where (firstBehavior: _ ) = behaviors ent
 
 handler :: Event -> GameState -> GameState
 handler _ state = state
