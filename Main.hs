@@ -22,15 +22,18 @@ data Entity = Entity
 
 initialState :: GameState
 initialState = State
-  { player = Entity {position = (0,0), behaviors = [goRight], weapon = Nothing}
+  { player = Entity {position = (0,0), behaviors = [goNowhere], weapon = Nothing}
   , foes = []
   , pews = []
   , paused = False
   }
 
-goRight :: Behavior
-goRight e = e { position = (x+3, y) }
+goDown :: Behavior
+goDown e = e { position = (x, y-3) }
  where (x,y) = position e
+
+goNowhere :: Behavior
+goNowhere e = e
 
 window :: Display
 window = InWindow "EffectiveOctoFortnite" (700, 700) (10, 10)
@@ -46,10 +49,25 @@ update ticks state = state { player = updateEntity (player state) }
 
 updateEntity :: Entity -> Entity
 updateEntity ent = firstBehavior ent
-  where (firstBehavior: _ ) = behaviors ent
+  where (firstBehavior:_) = behaviors ent
 
 handler :: Event -> GameState -> GameState
+handler (EventKey (Char 'w') Down _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goDown]
+-- handler (EventKey (Char 'a') _ _ _) state =
+--   state { player = (player state) + 3 }
+-- handler (EventKey (Char 's') _ _ _) state =
+--   state { player = (player state) + 3 }
+-- handler (EventKey (Char 'd') _ _ _) state =
+--   state { player = (player state) + 3 }
+
+handler (EventKey (Char 'w') Up _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goNowhere]
+
 handler _ state = state
+
 
 main :: IO ()
 main = play window background fps initialState drawing handler update
