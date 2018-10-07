@@ -79,10 +79,16 @@ handler (EventKey (Char 's') Down _ _) state =
 handler (EventKey (Char 'd') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goRight]
-
-
-
 handler (EventKey (Char 'w') Up _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goNowhere]
+handler (EventKey (Char 'a') Up _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goNowhere]
+handler (EventKey (Char 's') Up _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goNowhere]
+handler (EventKey (Char 'd') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goNowhere]
 
