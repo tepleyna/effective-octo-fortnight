@@ -28,9 +28,24 @@ initialState = State
   , paused = False
   }
 
+playerSpeed :: Float
+playerSpeed = 3
+
 goDown :: Behavior
-goDown e = e { position = (x, y-3) }
+goDown e = e { position = (x, y-playerSpeed) }
  where (x,y) = position e
+
+goUp :: Behavior
+goUp e = e { position = (x, y+playerSpeed) }
+  where (x,y) = position e
+
+goRight :: Behavior
+goRight e = e { position = (x+playerSpeed, y) }
+  where (x,y) = position e
+
+goLeft :: Behavior
+goLeft e = e { position = (x-playerSpeed, y) }
+  where (x,y) = position e
 
 goNowhere :: Behavior
 goNowhere e = e
@@ -54,20 +69,24 @@ updateEntity ent = firstBehavior ent
 handler :: Event -> GameState -> GameState
 handler (EventKey (Char 'w') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goUp]
+handler (EventKey (Char 'a') Down _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goLeft]
+handler (EventKey (Char 's') Down _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goDown]
--- handler (EventKey (Char 'a') _ _ _) state =
---   state { player = (player state) + 3 }
--- handler (EventKey (Char 's') _ _ _) state =
---   state { player = (player state) + 3 }
--- handler (EventKey (Char 'd') _ _ _) state =
---   state { player = (player state) + 3 }
+handler (EventKey (Char 'd') Down _ _) state =
+  state { player = (player state){ behaviors = newBehaviors } }
+  where newBehaviors = [goRight]
+
+
 
 handler (EventKey (Char 'w') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goNowhere]
 
 handler _ state = state
-
 
 main :: IO ()
 main = play window background fps initialState drawing handler update
