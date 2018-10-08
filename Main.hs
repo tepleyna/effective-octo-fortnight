@@ -34,7 +34,7 @@ data Entity = Entity
 initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [goNowhere 0], weapon = Nothing, isDead = False, radius = 15}
-  , foes = [ 
+  , foes = [
     Entity {
       position = (-20,-200)
       , behaviors = [goUp (slower playerSpeed)]
@@ -67,13 +67,13 @@ foeWithAim :: Position -> Position -> Entity
 foeWithAim spawn target = Entity {
     position = spawn
     , behaviors = [targetSpot (slower (slower(playerSpeed))) target]
-    , weapon = Nothing 
+    , weapon = Nothing
     , isDead = False
     , radius = 10}
 
 targetSpot :: Float -> Position -> Behavior
 targetSpot speed targetPos e = e {
-  position = ( oldX - (speed * asin( diffX/diffY )) 
+  position = ( oldX - (speed * asin( diffX/diffY ))
               , oldY - (speed * acos( diffX/diffY)))
 }
   where
@@ -109,8 +109,11 @@ background :: Color
 background = light $ light blue
 
 render :: GameState -> Picture
-render state =
-  pictures pics
+render state
+  | isDead $ player state =
+    color (dark red) $ text "You died"
+  |otherwise =
+    pictures pics
   where
     playerPic = uncurry translate (position $ player state) (circleSolid (radius $ player state))
     enemies = mkEnemies state
@@ -118,7 +121,7 @@ render state =
     pics = [playerPic] ++ enemies ++ pews  -- background etc?
 
 mkEnemies :: GameState -> [Picture]
-mkEnemies state = map 
+mkEnemies state = map
     (\x ->   uncurry translate (position x) $ color red $ circleSolid $radius x )
     $ foes state
 
@@ -130,24 +133,32 @@ update :: Float -> GameState -> GameState
 update ticks state = cleanDeads $ moveThings $ collideThings state
 
 cleanDeads :: GameState -> GameState
-cleanDeads state = state { 
-  foes   = [x | x <- foes state, not (isDead x)]
-  , pews = [x | x <- foes state, not (isDead x)]  }
+cleanDeads state = state
+  { foes = [x | x <- foes state, not (isDead x)]
+  , pews = [x | x <- foes state, not (isDead x)]
+  }
 
 collideThings :: GameState -> GameState
-collideThings state = state {
-  foes = [x { isDead = intersect (position $ player state) (position x) (max (radius x) (radius $ player state))} 
-    | x <- foes state ]
-}
+collideThings state = state
+  { player = (player state) { isDead = playerDie || isDead (player state)}
+  , foes = foePlayer
+  }
+  where
+    foePlayer = [foe { isDead = intersect (player state) foe } | foe <- foes state]
+    playerDie = any isDead foePlayer
 
-intersect :: Position -> Position -> Float -> Bool
-intersect (x1,y1) (x2,y2) radius = 
-  radius > ( sqrt ((x1 - x2)^2 + (y1 - y2)^2 ))
+intersect :: Entity -> Entity -> Bool
+intersect e1 e2 =
+  collisionRadius > ( sqrt ((x1 - x2)^2 + (y1 - y2)^2 ))
+  where
+    (x1, y1) = position e1
+    (x2, y2) = position e2
+    collisionRadius = (radius e1) + (radius e2)
 
 moveThings :: GameState -> GameState
-moveThings state = state { 
+moveThings state = state {
   player = updateEntity $ player state
-  , foes = map (\x -> updateEntity x) $ foes state }
+  , foes = map updateEntity $ foes state }
 
 updateEntity :: Entity -> Entity
 updateEntity ent = firstBehavior ent
