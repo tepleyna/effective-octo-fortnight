@@ -34,34 +34,31 @@ data Entity = Entity
 initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [goNowhere 0], weapon = Nothing, isDead = False, radius = 15}
-  , foes = [
-    Entity {
-      position = (-20,-200)
-      , behaviors = [goUp (slower playerSpeed)]
-      , weapon = Nothing
-      , isDead = False
-      , radius = 20
-      } ,
-    Entity {
-      position = (150,-200)
-      , behaviors = [goUp (slower playerSpeed)]
-      , weapon = Nothing
-      , isDead = False
-      , radius = 20
-      } ,
-    Entity {
-      position = (150,-300)
-      , behaviors = [goUp (slower(slower playerSpeed))]
-      , weapon = Nothing
-      , isDead = False
-      , radius = 20
-      } ,
-    foeWithAim (250, 380) startHeroPos
-       ]
+  , foes = [ 
+    mkFoe (-20,-200) [goUp (slower playerSpeed)] Nothing 20 ,
+    mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20 ,
+    mkFoe (60,-300) [goUp (slower playerSpeed)] Nothing 20 ,
+
+    mkFoe (   0, 800) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
+    mkFoe ( 300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
+    mkFoe (-300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5
+    ]
   , pews = []
   , paused = False
   }
-  where startHeroPos = (150,1)
+    where 
+      startHeroPos = (150,1)
+      target = (-10,-10)
+
+mkFoe :: Position -> [Behavior] -> Maybe Weapon -> Float -> Entity
+mkFoe pos behs pew rad =
+  Entity {
+    position = pos
+    , behaviors = behs
+    , weapon = pew
+    , isDead = False
+    , radius = rad
+    } 
 
 foeWithAim :: Position -> Position -> Entity
 foeWithAim spawn target = Entity {
