@@ -111,7 +111,7 @@ background = light $ light blue
 render :: GameState -> Picture
 render state
   | isDead $ player state =
-    color (dark red) $ text "You died"
+    uncurry translate (-300, 0) $ color (dark red) $ text "You died"
   |otherwise =
     pictures pics
   where
