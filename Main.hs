@@ -6,6 +6,9 @@ import Graphics.Gloss.Interface.Pure.Game
 fps :: Int
 fps = 60
 
+playerSpeed :: Float
+playerSpeed = 3
+
 type Position = (Float, Float)
 type Behavior = Entity -> Entity
 type Weapon = Position -> Entity
@@ -23,13 +26,10 @@ data Entity = Entity
 initialState :: GameState
 initialState = State
   { player = Entity {position = (0,0), behaviors = [goNowhere], weapon = Nothing}
-  , foes = []
+  , foes = [ Entity {position = (-20,20), behaviors = [goNowhere], weapon = Nothing} ]
   , pews = []
   , paused = False
   }
-
-playerSpeed :: Float
-playerSpeed = 3
 
 goDown :: Behavior
 goDown e = e { position = (x, y-playerSpeed) }
@@ -56,8 +56,23 @@ window = InWindow "EffectiveOctoFortnite" (700, 700) (10, 10)
 background :: Color
 background = light $ light blue
 
-drawing :: GameState -> Picture
-drawing state = uncurry translate (position (player state)) (circleSolid 15)
+render :: GameState -> Picture
+render state =
+  pictures pics -- background etc?
+  where
+    playerPic = uncurry translate (position $ player state) (circleSolid 15)
+    enemies = mkEnemies state
+    pews = mkPews state
+    pics = [playerPic] ++ enemies ++ pews
+
+mkEnemies :: GameState -> [Picture]
+mkEnemies state = map 
+    (\x ->   uncurry translate (position x) $ color green $ circle 20 )
+    $ foes state
+
+mkPews :: GameState -> [Picture]
+mkPews state = []
+
 
 update :: Float -> GameState -> GameState
 update ticks state = state { player = updateEntity (player state) }
@@ -67,6 +82,7 @@ updateEntity ent = firstBehavior ent
   where (firstBehavior:_) = behaviors ent
 
 handler :: Event -> GameState -> GameState
+-- Move
 handler (EventKey (Char 'w') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goUp]
@@ -79,6 +95,7 @@ handler (EventKey (Char 's') Down _ _) state =
 handler (EventKey (Char 'd') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goRight]
+-- Un-Move
 handler (EventKey (Char 'w') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goNowhere]
@@ -95,4 +112,4 @@ handler (EventKey (Char 'd') Up _ _) state =
 handler _ state = state
 
 main :: IO ()
-main = play window background fps initialState drawing handler update
+main = play window background fps initialState render handler update
