@@ -7,7 +7,13 @@ fps :: Int
 fps = 60
 
 playerSpeed :: Float
-playerSpeed = 3
+playerSpeed = 2.5
+
+slower :: Float -> Float
+slower speed = 0.65 * speed
+
+faster :: Float -> Float
+faster speed = 1.3 * speed
 
 type Position = (Float, Float)
 type Behavior = Entity -> Entity
@@ -26,13 +32,16 @@ data Entity = Entity
 initialState :: GameState
 initialState = State
   { player = Entity {position = (0,0), behaviors = [goNowhere], weapon = Nothing}
-  , foes = [ Entity {position = (-50,345), behaviors = [goDown], weapon = Nothing} ]
+  , foes = [ Entity {
+    position = (-50,345)
+    , behaviors = [goDown $ slower(playerSpeed)]
+    , weapon = Nothing} ]
   , pews = []
   , paused = False
   }
 
-goDown :: Behavior
-goDown e = e { position = (x, y-playerSpeed) }
+goDown :: Float -> Behavior
+goDown speed e = e { position = (x, y-speed) }
  where (x,y) = position e
 
 goUp :: Behavior
@@ -93,7 +102,7 @@ handler (EventKey (Char 'a') Down _ _) state =
   where newBehaviors = [goLeft]
 handler (EventKey (Char 's') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goDown]
+  where newBehaviors = [goDown playerSpeed]
 handler (EventKey (Char 'd') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goRight]
