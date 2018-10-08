@@ -37,8 +37,9 @@ initialState = State
       position = (-75,0)
       , behaviors = [goDown $ slower(playerSpeed)]
       , weapon = Nothing},
-    foeWithAim (-200, 350) (0,0),
-    foeWithAim (250, 380) (0,0)
+    foeWithAim (1, 350) (0,0),
+    foeWithAim (250, 380) (0,0),
+    foeWithAim (-60, 300) (0,0)
        ]
   , pews = []
   , paused = False
