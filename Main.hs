@@ -26,7 +26,7 @@ data Entity = Entity
 initialState :: GameState
 initialState = State
   { player = Entity {position = (0,0), behaviors = [goNowhere], weapon = Nothing}
-  , foes = [ Entity {position = (-20,20), behaviors = [goNowhere], weapon = Nothing} ]
+  , foes = [ Entity {position = (-50,345), behaviors = [goDown], weapon = Nothing} ]
   , pews = []
   , paused = False
   }
@@ -75,7 +75,9 @@ mkPews state = []
 
 
 update :: Float -> GameState -> GameState
-update ticks state = state { player = updateEntity (player state) }
+update ticks state = state { 
+  player = updateEntity $ player state
+  , foes = map (\x -> updateEntity x) $ foes state }
 
 updateEntity :: Entity -> Entity
 updateEntity ent = firstBehavior ent
