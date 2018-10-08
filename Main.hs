@@ -70,15 +70,16 @@ foeWithAim spawn target = Entity {
 
 targetSpot :: Float -> Position -> Behavior
 targetSpot speed targetPos e = e {
-  position = ( oldX - (speed * asin( diffX/diffY ))
-              , oldY - (speed * acos( diffX/diffY)))
+  position = ( oldX - (speed * diffX/dist)
+             , oldY - (speed * diffY/dist)
+             )
 }
   where
     (oldX,oldY) = position e
     (targetX,targetY) = targetPos
-    diffX = oldX - targetX + 0.001
-    diffY = oldY - targetY + 0.001
-    dist = sqrt( diffX*diffX + diffY*diffY ) + 0.001
+    diffX = oldX - targetX
+    diffY = oldY - targetY
+    dist = sqrt( diffX*diffX + diffY*diffY )
 
 goDown :: Float -> Behavior
 goDown speed e = e { position = (x, y-speed) }
@@ -119,7 +120,7 @@ render state
 
 mkEnemies :: GameState -> [Picture]
 mkEnemies state = map
-    (\x ->   uncurry translate (position x) $ color red $ circleSolid $radius x )
+    (\x ->   uncurry translate (position x) $ color red $ circleSolid $ radius x )
     $ foes state
 
 mkPews :: GameState -> [Picture]
@@ -158,37 +159,35 @@ moveThings state = state {
   , foes = map updateEntity $ foes state }
 
 updateEntity :: Entity -> Entity
-updateEntity ent = firstBehavior ent
-  where (firstBehavior:_) = behaviors ent
+updateEntity ent = foldl (\acc x -> x acc) ent (behaviors ent)
 
 handler :: Event -> GameState -> GameState
 -- Move
 handler (EventKey (Char 'w') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goUp playerSpeed]
+  where newBehaviors = behaviors (player state) ++ [goUp playerSpeed]
 handler (EventKey (Char 'a') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goLeft playerSpeed]
+  where newBehaviors = behaviors (player state) ++ [goLeft playerSpeed]
 handler (EventKey (Char 's') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goDown playerSpeed]
+  where newBehaviors = behaviors (player state) ++ [goDown playerSpeed]
 handler (EventKey (Char 'd') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goRight playerSpeed]
+  where newBehaviors = behaviors (player state) ++ [goRight playerSpeed]
 -- Un-Move
 handler (EventKey (Char 'w') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere 0]
+  where newBehaviors = []
 handler (EventKey (Char 'a') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere 0]
+  where newBehaviors = []
 handler (EventKey (Char 's') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere 0]
+  where newBehaviors = []
 handler (EventKey (Char 'd') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere 0]
-
+  where newBehaviors = []
 handler _ state = state
 
 main :: IO ()
