@@ -27,29 +27,49 @@ data GameState = State
 data Entity = Entity
   { position :: Position
   , behaviors :: [Behavior]
-  , weapon :: Maybe Weapon}
+  , weapon :: Maybe Weapon
+  , isDead :: Bool
+  , radius :: Float}
 
 initialState :: GameState
 initialState = State
-  { player = Entity {position = (0,0), behaviors = [goNowhere], weapon = Nothing}
+  { player = Entity { position = startHeroPos, behaviors = [goNowhere 0], weapon = Nothing, isDead = False, radius = 15}
   , foes = [ 
     Entity {
-      position = (-75,0)
-      , behaviors = [goDown $ slower(playerSpeed)]
-      , weapon = Nothing},
-    foeWithAim (1, 350) (0,0),
-    foeWithAim (250, 380) (0,0),
-    foeWithAim (-60, 300) (0,0)
+      position = (-20,-200)
+      , behaviors = [goUp (slower playerSpeed)]
+      , weapon = Nothing
+      , isDead = False
+      , radius = 20
+      } ,
+    Entity {
+      position = (150,-200)
+      , behaviors = [goUp (slower playerSpeed)]
+      , weapon = Nothing
+      , isDead = False
+      , radius = 20
+      } ,
+    Entity {
+      position = (150,-300)
+      , behaviors = [goUp (slower(slower playerSpeed))]
+      , weapon = Nothing
+      , isDead = False
+      , radius = 20
+      } ,
+    foeWithAim (250, 380) startHeroPos
        ]
   , pews = []
   , paused = False
   }
+  where startHeroPos = (150,1)
 
 foeWithAim :: Position -> Position -> Entity
 foeWithAim spawn target = Entity {
     position = spawn
     , behaviors = [targetSpot (slower (slower(playerSpeed))) target]
-    , weapon = Nothing}
+    , weapon = Nothing 
+    , isDead = False
+    , radius = 10}
 
 targetSpot :: Float -> Position -> Behavior
 targetSpot speed targetPos e = e {
@@ -59,28 +79,28 @@ targetSpot speed targetPos e = e {
   where
     (oldX,oldY) = position e
     (targetX,targetY) = targetPos
-    diffX = oldX - targetX + 0.01
-    diffY = oldY - targetY + 0.01
-    dist = sqrt( diffX*diffX + diffY*diffY ) + 0.01
+    diffX = oldX - targetX + 0.001
+    diffY = oldY - targetY + 0.001
+    dist = sqrt( diffX*diffX + diffY*diffY ) + 0.001
 
 goDown :: Float -> Behavior
 goDown speed e = e { position = (x, y-speed) }
  where (x,y) = position e
 
-goUp :: Behavior
-goUp e = e { position = (x, y+playerSpeed) }
+goUp :: Float -> Behavior
+goUp speed e = e { position = (x, y+speed) }
   where (x,y) = position e
 
-goRight :: Behavior
-goRight e = e { position = (x+playerSpeed, y) }
+goRight :: Float -> Behavior
+goRight speed e = e { position = (x+speed, y) }
   where (x,y) = position e
 
-goLeft :: Behavior
-goLeft e = e { position = (x-playerSpeed, y) }
+goLeft :: Float -> Behavior
+goLeft speed e = e { position = (x-speed, y) }
   where (x,y) = position e
 
-goNowhere :: Behavior
-goNowhere e = e
+goNowhere :: Float -> Behavior
+goNowhere _ e = e
 
 window :: Display
 window = InWindow "EffectiveOctoFortnite" (700, 700) (10, 10)
@@ -90,16 +110,16 @@ background = light $ light blue
 
 render :: GameState -> Picture
 render state =
-  pictures pics -- background etc?
+  pictures pics
   where
-    playerPic = uncurry translate (position $ player state) (circleSolid 15)
+    playerPic = uncurry translate (position $ player state) (circleSolid (radius $ player state))
     enemies = mkEnemies state
     pews = mkPews state
-    pics = [playerPic] ++ enemies ++ pews
+    pics = [playerPic] ++ enemies ++ pews  -- background etc?
 
 mkEnemies :: GameState -> [Picture]
 mkEnemies state = map 
-    (\x ->   uncurry translate (position x) $ color red $ circleSolid 20 )
+    (\x ->   uncurry translate (position x) $ color red $ circleSolid $radius x )
     $ foes state
 
 mkPews :: GameState -> [Picture]
@@ -107,7 +127,25 @@ mkPews state = []
 
 
 update :: Float -> GameState -> GameState
-update ticks state = state { 
+update ticks state = cleanDeads $ moveThings $ collideThings state
+
+cleanDeads :: GameState -> GameState
+cleanDeads state = state { 
+  foes   = [x | x <- foes state, not (isDead x)]
+  , pews = [x | x <- foes state, not (isDead x)]  }
+
+collideThings :: GameState -> GameState
+collideThings state = state {
+  foes = [x { isDead = intersect (position $ player state) (position x) (max (radius x) (radius $ player state))} 
+    | x <- foes state ]
+}
+
+intersect :: Position -> Position -> Float -> Bool
+intersect (x1,y1) (x2,y2) radius = 
+  radius > ( sqrt ((x1 - x2)^2 + (y1 - y2)^2 ))
+
+moveThings :: GameState -> GameState
+moveThings state = state { 
   player = updateEntity $ player state
   , foes = map (\x -> updateEntity x) $ foes state }
 
@@ -119,29 +157,29 @@ handler :: Event -> GameState -> GameState
 -- Move
 handler (EventKey (Char 'w') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goUp]
+  where newBehaviors = [goUp playerSpeed]
 handler (EventKey (Char 'a') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goLeft]
+  where newBehaviors = [goLeft playerSpeed]
 handler (EventKey (Char 's') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
   where newBehaviors = [goDown playerSpeed]
 handler (EventKey (Char 'd') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goRight]
+  where newBehaviors = [goRight playerSpeed]
 -- Un-Move
 handler (EventKey (Char 'w') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere]
+  where newBehaviors = [goNowhere 0]
 handler (EventKey (Char 'a') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere]
+  where newBehaviors = [goNowhere 0]
 handler (EventKey (Char 's') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere]
+  where newBehaviors = [goNowhere 0]
 handler (EventKey (Char 'd') Up _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
-  where newBehaviors = [goNowhere]
+  where newBehaviors = [goNowhere 0]
 
 handler _ state = state
 
