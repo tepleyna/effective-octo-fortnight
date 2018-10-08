@@ -32,13 +32,35 @@ data Entity = Entity
 initialState :: GameState
 initialState = State
   { player = Entity {position = (0,0), behaviors = [goNowhere], weapon = Nothing}
-  , foes = [ Entity {
-    position = (-50,345)
-    , behaviors = [goDown $ slower(playerSpeed)]
-    , weapon = Nothing} ]
+  , foes = [ 
+    Entity {
+      position = (-75,0)
+      , behaviors = [goDown $ slower(playerSpeed)]
+      , weapon = Nothing},
+    foeWithAim (-200, 350) (0,0),
+    foeWithAim (250, 380) (0,0)
+       ]
   , pews = []
   , paused = False
   }
+
+foeWithAim :: Position -> Position -> Entity
+foeWithAim spawn target = Entity {
+    position = spawn
+    , behaviors = [targetSpot (slower (slower(playerSpeed))) target]
+    , weapon = Nothing}
+
+targetSpot :: Float -> Position -> Behavior
+targetSpot speed targetPos e = e {
+  position = ( oldX - (speed * asin( diffX/diffY )) 
+              , oldY - (speed * acos( diffX/diffY)))
+}
+  where
+    (oldX,oldY) = position e
+    (targetX,targetY) = targetPos
+    diffX = oldX - targetX + 0.01
+    diffY = oldY - targetY + 0.01
+    dist = sqrt( diffX*diffX + diffY*diffY ) + 0.01
 
 goDown :: Float -> Behavior
 goDown speed e = e { position = (x, y-speed) }
@@ -76,7 +98,7 @@ render state =
 
 mkEnemies :: GameState -> [Picture]
 mkEnemies state = map 
-    (\x ->   uncurry translate (position x) $ color green $ circle 20 )
+    (\x ->   uncurry translate (position x) $ color red $ circleSolid 20 )
     $ foes state
 
 mkPews :: GameState -> [Picture]
