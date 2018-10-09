@@ -33,8 +33,8 @@ data Entity = Entity
 
 
 simplePew :: [Char] -> Weapon 
-simplePew "Up" = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 3
-simplePew _    = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 3
+simplePew "Up" = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 7
+simplePew _    = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 7
 
 
 initialState :: GameState
@@ -140,7 +140,7 @@ mkPews :: GameState -> [Picture]
 mkPews state = map
   (\x ->   uncurry 
     translate (position x) 
-    $ color red 
+    $ color blue 
     $ rectangleSolid (radius x) (radius x) )
   $ pews state
 
@@ -156,12 +156,15 @@ cleanDeads state = state
 collideThings :: GameState -> GameState
 collideThings state = state
   { player = (player state) { isDead = playerDie || isDead (player state)}
-  , foes = foePlayer
+  , foes = foePew
+  , pews = pewFoe
   }
   where
     foePlayer = [foe { isDead = intersect (player state) foe } | foe <- foes state]
     playerDie = any isDead foePlayer
-    foePew    = [foe2 { isDead = (isDead foe2) || foldl (\x y -> (intersect foe2 y) || x) False (pews state) } | foe2 <- foePlayer]
+    foePew    = [ foe { isDead = (isDead foe) || any (intersect foe) (pews state) } | foe <- foePlayer]
+    pewFoe    = [ pew { isDead = any (intersect pew) (foes state) } | pew <- pews state]
+
 
 intersect :: Entity -> Entity -> Bool
 intersect e1 e2 =
