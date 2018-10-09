@@ -33,8 +33,8 @@ data Entity = Entity
 
 initialState :: GameState
 initialState = State
-  { player = Entity { position = startHeroPos, behaviors = [goNowhere 0], weapon = Nothing, isDead = False, radius = 15}
-  , foes = [ 
+  { player = Entity { position = startHeroPos, behaviors = [], weapon = Nothing, isDead = False, radius = 15}
+  , foes = [
     mkFoe (-20,-200) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (60,-300) [goUp (slower playerSpeed)] Nothing 20 ,
@@ -46,7 +46,7 @@ initialState = State
   , pews = []
   , paused = False
   }
-    where 
+    where
       startHeroPos = (150,1)
       target = (-10,-10)
 
@@ -58,7 +58,7 @@ mkFoe pos behs pew rad =
     , weapon = pew
     , isDead = False
     , radius = rad
-    } 
+    }
 
 foeWithAim :: Position -> Position -> Entity
 foeWithAim spawn target = Entity {
@@ -81,24 +81,25 @@ targetSpot speed targetPos e = e {
     diffY = oldY - targetY
     dist = sqrt( diffX*diffX + diffY*diffY )
 
+goDirection :: Float -> Float -> Behavior
+goDirection angle speed entity =
+  entity { position = (x+dx, y+dy) }
+  where
+    (x,y) = position entity
+    dx = (cos angle) * speed
+    dy = (sin angle) * speed
+
 goDown :: Float -> Behavior
-goDown speed e = e { position = (x, y-speed) }
- where (x,y) = position e
+goDown = goDirection (3 * pi / 2)
 
 goUp :: Float -> Behavior
-goUp speed e = e { position = (x, y+speed) }
-  where (x,y) = position e
+goUp = goDirection (pi / 2)
 
 goRight :: Float -> Behavior
-goRight speed e = e { position = (x+speed, y) }
-  where (x,y) = position e
+goRight = goDirection 0
 
 goLeft :: Float -> Behavior
-goLeft speed e = e { position = (x-speed, y) }
-  where (x,y) = position e
-
-goNowhere :: Float -> Behavior
-goNowhere _ e = e
+goLeft = goDirection pi
 
 window :: Display
 window = InWindow "EffectiveOctoFortnite" (700, 700) (10, 10)
@@ -159,7 +160,7 @@ moveThings state = state {
   , foes = map updateEntity $ foes state }
 
 updateEntity :: Entity -> Entity
-updateEntity ent = foldl (\acc x -> x acc) ent (behaviors ent)
+updateEntity ent = foldl (flip id) ent (behaviors ent)
 
 handler :: Event -> GameState -> GameState
 -- Move
