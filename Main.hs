@@ -23,6 +23,7 @@ data GameState = State
   , foes :: [Entity]
   , pews :: [Entity]
   , paused :: Bool
+  , level :: [[Entity]]
   }
 data Entity = Entity
   { position :: Position
@@ -32,19 +33,17 @@ data Entity = Entity
   , radius :: Float}
 
 
-simplePew :: [Char] -> Weapon 
-simplePew "Up" = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 7
-simplePew _    = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 7
-
+simplePew :: [Behavior] -> Weapon 
+simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 7
 
 initialState :: GameState
 initialState = State
-  { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew "Up", isDead = False, radius = 15}
+  { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew [goUp $ faster playerSpeed], isDead = False, radius = 15}
   , foes = [
-    mkFoe (-20,-700) [goUp playerSpeed] Nothing 70 ,
-    mkFoe (-20,-200) [goUp (slower playerSpeed)] Nothing 20 ,
+    mkFoe (-20, -700) [goUp playerSpeed] Nothing 70 ,
+    mkFoe (-20, -200) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20 ,
-    mkFoe (60,-300) [goUp (slower playerSpeed)] Nothing 20 ,
+    mkFoe (60,  -300) [goUp (slower playerSpeed)] Nothing 20 ,
 
     mkFoe (60, 100) [circleCW playerSpeed (pi / 100) 0] Nothing 10,
 
@@ -55,6 +54,7 @@ initialState = State
     ]
   , pews = []
   , paused = False
+  , level = []
   }
     where
       startHeroPos = (150,1)
