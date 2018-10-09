@@ -33,25 +33,24 @@ data Entity = Entity
 
 initialState :: GameState
 initialState = State
-  { player = Entity { position = startHeroPos, behaviors = [goNowhere 0], weapon = Nothing, isDead = False, radius = 15}
-  , foes = [ 
+  { player = Entity { position = startHeroPos, behaviors = [], weapon = Nothing, isDead = False, radius = 15}
+  , foes = [
     mkFoe (-20,-700) [goUp playerSpeed] Nothing 70 ,
     mkFoe (-20,-200) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (60,-300) [goUp (slower playerSpeed)] Nothing 20 ,
 
-    mkFoe (   0, 800) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
-    mkFoe ( 300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
-    mkFoe (-300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
+    mkFoe (60, 100) [circleCW playerSpeed (pi / 100) 0] Nothing 10,
 
-    mkFoe (-800, 10) [targetSpot (slower (slower(playerSpeed))) target2] Nothing 5,
-    mkFoe ( 855, 10) [targetSpot (slower (slower(playerSpeed))) target2] Nothing 5,
-    mkFoe ( 800, 25) [targetSpot (slower (slower(playerSpeed))) target2] Nothing 5
+    mkFoe (0, 500) 
+      [targetSpot (slower (slower(playerSpeed))) target
+      , circleCW playerSpeed (pi / 100) 0]
+      Nothing 5
     ]
   , pews = []
   , paused = False
   }
-    where 
+    where
       startHeroPos = (150,1)
       target = (-10,-10)
       target2= (-35, 20)
@@ -64,21 +63,15 @@ mkFoe pos behs pew rad =
     , weapon = pew
     , isDead = False
     , radius = rad
-    } 
+    }
 
-foeWithAim :: Position -> Position -> Entity
-foeWithAim spawn target = Entity {
-    position = spawn
-    , behaviors = [targetSpot (slower (slower(playerSpeed))) target]
-    , weapon = Nothing
-    , isDead = False
-    , radius = 10}
 
 targetSpot :: Float -> Position -> Behavior
-targetSpot speed targetPos e = e {
+targetSpot speed targetPos e =  
+  e {
   position = ( oldX - (speed * diffX/dist)
-             , oldY - (speed * diffY/dist)
-             )
+              , oldY - (speed * diffY/dist) ),
+  behaviors = outBehaviors
 }
   where
     (oldX,oldY) = position e
@@ -86,25 +79,50 @@ targetSpot speed targetPos e = e {
     diffX = oldX - targetX
     diffY = oldY - targetY
     dist = sqrt( diffX*diffX + diffY*diffY )
+    outBehaviors =
+      if 7 > distance targetPos (position e)
+        then tail $ behaviors e 
+        else behaviors e
+
+distance :: Position -> Position -> Float
+distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1) ) 
+-- targetSpot :: Float -> Position -> Behavior
+-- targetSpot speed targetPos e = e {
+--   position = ( oldX - (speed * diffX/dist)
+--              , oldY - (speed * diffY/dist)
+--              )
+-- }
+--   where
+--     (oldX,oldY) = position e
+--     (targetX,targetY) = targetPos
+--     diffX = oldX - targetX
+--     diffY = oldY - targetY
+--     dist = sqrt( diffX*diffX + diffY*diffY )
+
+circleCW :: Float -> Float -> Float -> Behavior
+circleCW speed turnrate initAngle entity =
+  (goDirection initAngle speed entity)
+  { behaviors = [circleCW speed turnrate (initAngle - turnrate)]}
+
+goDirection :: Float -> Float -> Behavior
+goDirection angle speed entity =
+  entity { position = (x+dx, y+dy) }
+  where
+    (x,y) = position entity
+    dx = (cos angle) * speed
+    dy = (sin angle) * speed
 
 goDown :: Float -> Behavior
-goDown speed e = e { position = (x, y-speed) }
- where (x,y) = position e
+goDown = goDirection (3 * pi / 2)
 
 goUp :: Float -> Behavior
-goUp speed e = e { position = (x, y+speed) }
-  where (x,y) = position e
+goUp = goDirection (pi / 2)
 
 goRight :: Float -> Behavior
-goRight speed e = e { position = (x+speed, y) }
-  where (x,y) = position e
+goRight = goDirection 0
 
 goLeft :: Float -> Behavior
-goLeft speed e = e { position = (x-speed, y) }
-  where (x,y) = position e
-
-goNowhere :: Float -> Behavior
-goNowhere _ e = e
+goLeft = goDirection pi
 
 window :: Display
 window = InWindow "EffectiveOctoFortnite" (700, 700) (10, 10)
@@ -165,7 +183,11 @@ moveThings state = state {
   , foes = map updateEntity $ foes state }
 
 updateEntity :: Entity -> Entity
-updateEntity ent = foldl (\acc x -> x acc) ent (behaviors ent)
+updateEntity ent = 
+  if length (behaviors ent) == 0
+    then ent
+    else (head $ behaviors ent) ent
+  --foldl (flip id) ent (behaviors ent)
 
 handler :: Event -> GameState -> GameState
 handler (EventKey (Char 'n') Down _ _) state =
