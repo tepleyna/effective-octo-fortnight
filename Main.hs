@@ -35,13 +35,18 @@ initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [goNowhere 0], weapon = Nothing, isDead = False, radius = 15}
   , foes = [ 
+    mkFoe (-20,-700) [goUp playerSpeed] Nothing 70 ,
     mkFoe (-20,-200) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (60,-300) [goUp (slower playerSpeed)] Nothing 20 ,
 
     mkFoe (   0, 800) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
     mkFoe ( 300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
-    mkFoe (-300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5
+    mkFoe (-300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
+
+    mkFoe (-800, 10) [targetSpot (slower (slower(playerSpeed))) target2] Nothing 5,
+    mkFoe ( 855, 10) [targetSpot (slower (slower(playerSpeed))) target2] Nothing 5,
+    mkFoe ( 800, 25) [targetSpot (slower (slower(playerSpeed))) target2] Nothing 5
     ]
   , pews = []
   , paused = False
@@ -49,6 +54,7 @@ initialState = State
     where 
       startHeroPos = (150,1)
       target = (-10,-10)
+      target2= (-35, 20)
 
 mkFoe :: Position -> [Behavior] -> Maybe Weapon -> Float -> Entity
 mkFoe pos behs pew rad =
@@ -162,6 +168,8 @@ updateEntity :: Entity -> Entity
 updateEntity ent = foldl (\acc x -> x acc) ent (behaviors ent)
 
 handler :: Event -> GameState -> GameState
+handler (EventKey (Char 'n') Down _ _) state =
+  initialState
 -- Move
 handler (EventKey (Char 'w') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
