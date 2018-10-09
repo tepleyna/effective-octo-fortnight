@@ -65,39 +65,23 @@ mkFoe pos behs pew rad =
     , radius = rad
     }
 
+distance :: Position -> Position -> Float
+distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1) )
 
 targetSpot :: Float -> Position -> Behavior
-targetSpot speed targetPos e =  
-  e {
-  position = ( oldX - (speed * diffX/dist)
-              , oldY - (speed * diffY/dist) ),
-  behaviors = outBehaviors
-}
+targetSpot speed targetPos e =
+  ( goDirection angle speed e )
+  { behaviors = outBehaviors }
   where
-    (oldX,oldY) = position e
-    (targetX,targetY) = targetPos
-    diffX = oldX - targetX
-    diffY = oldY - targetY
-    dist = sqrt( diffX*diffX + diffY*diffY )
+    (x,y) = position e
+    (x',y') = targetPos
+    dx = x' - x
+    dy = y' - y
+    angle = atan2 dy dx
     outBehaviors =
       if 7 > distance targetPos (position e)
-        then tail $ behaviors e 
+        then tail $ behaviors e
         else behaviors e
-
-distance :: Position -> Position -> Float
-distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1) ) 
--- targetSpot :: Float -> Position -> Behavior
--- targetSpot speed targetPos e = e {
---   position = ( oldX - (speed * diffX/dist)
---              , oldY - (speed * diffY/dist)
---              )
--- }
---   where
---     (oldX,oldY) = position e
---     (targetX,targetY) = targetPos
---     diffX = oldX - targetX
---     diffY = oldY - targetY
---     dist = sqrt( diffX*diffX + diffY*diffY )
 
 circleCW :: Float -> Float -> Float -> Behavior
 circleCW speed turnrate initAngle entity =
@@ -150,14 +134,13 @@ mkEnemies state = map
 mkPews :: GameState -> [Picture]
 mkPews state = []
 
-
 update :: Float -> GameState -> GameState
 update ticks state = cleanDeads $ moveThings $ collideThings state
 
 cleanDeads :: GameState -> GameState
 cleanDeads state = state
   { foes = [x | x <- foes state, not (isDead x)]
-  , pews = [x | x <- foes state, not (isDead x)]
+  , pews = [x | x <- pews state, not (isDead x)]
   }
 
 collideThings :: GameState -> GameState
@@ -183,7 +166,7 @@ moveThings state = state {
   , foes = map updateEntity $ foes state }
 
 updateEntity :: Entity -> Entity
-updateEntity ent = 
+updateEntity ent =
   if length (behaviors ent) == 0
     then ent
     else (head $ behaviors ent) ent
