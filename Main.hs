@@ -39,6 +39,8 @@ initialState = State
     mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20 ,
     mkFoe (60,-300) [goUp (slower playerSpeed)] Nothing 20 ,
 
+    mkFoe (60, 100) [circleCW playerSpeed (pi / 100) 0] Nothing 10 ,
+
     mkFoe (   0, 800) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
     mkFoe ( 300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5,
     mkFoe (-300, 850) [targetSpot (slower (slower(playerSpeed))) target] Nothing 5
@@ -80,6 +82,11 @@ targetSpot speed targetPos e = e {
     diffX = oldX - targetX
     diffY = oldY - targetY
     dist = sqrt( diffX*diffX + diffY*diffY )
+
+circleCW :: Float -> Float -> Float -> Behavior
+circleCW speed turnrate initAngle entity =
+  (goDirection initAngle speed entity)
+  { behaviors = [circleCW speed turnrate (initAngle - turnrate)]}
 
 goDirection :: Float -> Float -> Behavior
 goDirection angle speed entity =
