@@ -31,9 +31,15 @@ data Entity = Entity
   , isDead :: Bool
   , radius :: Float}
 
+
+simplePew :: [Char] -> Weapon 
+simplePew "Up" = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 3
+simplePew _    = \ (pos) -> Entity pos [goUp $ faster playerSpeed] Nothing False 3
+
+
 initialState :: GameState
 initialState = State
-  { player = Entity { position = startHeroPos, behaviors = [], weapon = Nothing, isDead = False, radius = 15}
+  { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew "Up", isDead = False, radius = 15}
   , foes = [
     mkFoe (-20,-700) [goUp playerSpeed] Nothing 70 ,
     mkFoe (-20,-200) [goUp (slower playerSpeed)] Nothing 20 ,
@@ -44,7 +50,7 @@ initialState = State
 
     mkFoe (0, 500) 
       [targetSpot (slower (slower(playerSpeed))) target
-      , circleCW playerSpeed (pi / 100) 0]
+      , circleCW (slower(playerSpeed)) (pi / 100) 180]
       Nothing 5
     ]
   , pews = []
@@ -53,7 +59,6 @@ initialState = State
     where
       startHeroPos = (150,1)
       target = (-10,-10)
-      target2= (-35, 20)
 
 mkFoe :: Position -> [Behavior] -> Maybe Weapon -> Float -> Entity
 mkFoe pos behs pew rad =
@@ -66,7 +71,7 @@ mkFoe pos behs pew rad =
     }
 
 distance :: Position -> Position -> Float
-distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1) )
+distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1)^2 )
 
 targetSpot :: Float -> Position -> Behavior
 targetSpot speed targetPos e =
@@ -79,7 +84,7 @@ targetSpot speed targetPos e =
     dy = y' - y
     angle = atan2 dy dx
     outBehaviors =
-      if 7 > distance targetPos (position e)
+      if 4 > distance targetPos (position e)
         then tail $ behaviors e
         else behaviors e
 
@@ -128,11 +133,16 @@ render state
 
 mkEnemies :: GameState -> [Picture]
 mkEnemies state = map
-    (\x ->   uncurry translate (position x) $ color red $ circleSolid $ radius x )
-    $ foes state
+  (\x ->   uncurry translate (position x) $ color red $ circleSolid $ radius x )
+  $ foes state
 
 mkPews :: GameState -> [Picture]
-mkPews state = []
+mkPews state = map
+  (\x ->   uncurry 
+    translate (position x) 
+    $ color red 
+    $ rectangleSolid (radius x) (radius x) )
+  $ pews state
 
 update :: Float -> GameState -> GameState
 update ticks state = cleanDeads $ moveThings $ collideThings state
@@ -151,30 +161,39 @@ collideThings state = state
   where
     foePlayer = [foe { isDead = intersect (player state) foe } | foe <- foes state]
     playerDie = any isDead foePlayer
+    foePew    = [foe2 { isDead = (isDead foe2) || foldl (\x y -> (intersect foe2 y) || x) False (pews state) } | foe2 <- foePlayer]
 
 intersect :: Entity -> Entity -> Bool
 intersect e1 e2 =
-  collisionRadius > ( sqrt ((x1 - x2)^2 + (y1 - y2)^2 ))
+  collisionRadius > distance (position e1) (position e2)
   where
-    (x1, y1) = position e1
-    (x2, y2) = position e2
     collisionRadius = (radius e1) + (radius e2)
 
 moveThings :: GameState -> GameState
 moveThings state = state {
   player = updateEntity $ player state
-  , foes = map updateEntity $ foes state }
+  , foes = map updateEntity $ foes state
+  , pews = map updateEntity $ pews state }
 
 updateEntity :: Entity -> Entity
 updateEntity ent =
   if length (behaviors ent) == 0
     then ent
     else (head $ behaviors ent) ent
-  --foldl (flip id) ent (behaviors ent)
 
 handler :: Event -> GameState -> GameState
-handler (EventKey (Char 'n') Down _ _) state =
-  initialState
+-- New Game // reset
+handler (EventKey (Char 'n') Down _ _) state = initialState
+-- Shoot
+handler (EventKey (Char 'h') _ _ _) state =
+  case (weapon $ player state) of
+      Nothing   -> state
+      Just val  -> state { pews = (pews state) ++ 
+          [val pewSpawn]}
+  where 
+    (x,y) = position $ player state
+    pewSpawn = (x, y + (radius $ player state))
+
 -- Move
 handler (EventKey (Char 'w') Down _ _) state =
   state { player = (player state){ behaviors = newBehaviors } }
