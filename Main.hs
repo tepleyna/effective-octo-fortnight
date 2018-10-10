@@ -33,32 +33,30 @@ data Entity = Entity
   , radius :: Float}
 
 
-simplePew :: [Behavior] -> Weapon 
+simplePew :: [Behavior] -> Weapon
 simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 7
 
 initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew [goUp $ faster playerSpeed], isDead = False, radius = 15}
-  , foes = [
-    mkFoe (-20, -700) [goUp playerSpeed] Nothing 70 ,
-    mkFoe (-20, -200) [goUp (slower playerSpeed)] Nothing 20 ,
-    mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20 ,
-    mkFoe (60,  -300) [goUp (slower playerSpeed)] Nothing 20 ,
-
-    mkFoe (60, 100) [circleCW playerSpeed (pi / 100) 0] Nothing 10,
-
-    mkFoe (0, 500) 
-      [targetSpot (slower (slower(playerSpeed))) target
-      , circleCW (slower(playerSpeed)) (pi / 100) 180]
-      Nothing 5
-    ]
+  , foes =
+      [ mkFoe (-20, -100) [forSteps 1 $ goUp playerSpeed, circleCW playerSpeed (pi/10) pi] Nothing 70
+      , mkFoe (-20, -200) [goUp (slower playerSpeed)] Nothing 20
+      , mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20
+      , mkFoe (60,  -300) [goUp (slower playerSpeed)] Nothing 20
+      , mkFoe (60, 100) [addBehavior $ circleCW playerSpeed (pi / 100) 0] Nothing 10
+      , mkFoe (0, 500)
+        [ targetSpot (slower (slower(playerSpeed))) target
+        , circleCW (slower(playerSpeed)) (pi / 100) 180
+        ] Nothing 5
+      ]
   , pews = []
   , paused = False
   , level = []
   }
-    where
-      startHeroPos = (150,1)
-      target = (-10,-10)
+  where
+    startHeroPos = (150,1)
+    target = (-10,-10)
 
 mkFoe :: Position -> [Behavior] -> Maybe Weapon -> Float -> Entity
 mkFoe pos behs pew rad =
@@ -72,6 +70,17 @@ mkFoe pos behs pew rad =
 
 distance :: Position -> Position -> Float
 distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1)^2 )
+
+nextBehavior :: Behavior
+nextBehavior entity = entity { behaviors = tail $ behaviors entity}
+
+addBehavior :: Behavior -> Behavior
+addBehavior behavior entity = entity { behaviors = [behavior] ++ behaviors entity}
+
+forSteps :: Float -> Behavior -> Behavior
+forSteps steps behavior = behavior . nextBehavior . case steps of
+  0 -> id
+  n -> addBehavior $ forSteps (n-1) behavior
 
 targetSpot :: Float -> Position -> Behavior
 targetSpot speed targetPos e =
@@ -138,9 +147,9 @@ mkEnemies state = map
 
 mkPews :: GameState -> [Picture]
 mkPews state = map
-  (\x ->   uncurry 
-    translate (position x) 
-    $ color blue 
+  (\x ->   uncurry
+    translate (position x)
+    $ color blue
     $ rectangleSolid (radius x) (radius x) )
   $ pews state
 
@@ -191,9 +200,9 @@ handler (EventKey (Char 'n') Down _ _) state = initialState
 handler (EventKey (Char 'h') _ _ _) state =
   case (weapon $ player state) of
       Nothing   -> state
-      Just val  -> state { pews = (pews state) ++ 
+      Just val  -> state { pews = (pews state) ++
           [val pewSpawn]}
-  where 
+  where
     (x,y) = position $ player state
     pewSpawn = (x, y + (radius $ player state))
 
