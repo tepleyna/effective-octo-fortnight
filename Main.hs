@@ -3,6 +3,10 @@ import Graphics.Gloss
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.Pure.Game
 
+-- Because I like F# style operators
+(|>) = flip (.)
+(<|) = (.)
+
 fps :: Int
 fps = 60
 
@@ -40,7 +44,7 @@ initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew [goUp $ faster playerSpeed], isDead = False, radius = 15}
   , foes =
-      [ mkFoe (-20, -100) [forSteps 1 $ goUp playerSpeed, circleCW playerSpeed (pi/10) pi] Nothing 70
+      [ mkFoe (-20, -100) [forSteps 60 $ goUp playerSpeed, circleCW playerSpeed (pi/10) pi] Nothing 70
       , mkFoe (-20, -200) [goUp (slower playerSpeed)] Nothing 20
       , mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20
       , mkFoe (60,  -300) [goUp (slower playerSpeed)] Nothing 20
@@ -75,12 +79,14 @@ nextBehavior :: Behavior
 nextBehavior entity = entity { behaviors = tail $ behaviors entity}
 
 addBehavior :: Behavior -> Behavior
-addBehavior behavior entity = entity { behaviors = [behavior] ++ behaviors entity}
+addBehavior behavior entity =
+  entity { behaviors = [behavior] ++ behaviors entity}
 
-forSteps :: Float -> Behavior -> Behavior
-forSteps steps behavior = behavior . nextBehavior . case steps of
-  0 -> id
-  n -> addBehavior $ forSteps (n-1) behavior
+forSteps :: Int -> Behavior -> Behavior
+forSteps steps behavior =
+  behavior |> nextBehavior |> case steps of
+    0 -> id
+    n -> addBehavior $ forSteps (n-1) behavior
 
 targetSpot :: Float -> Position -> Behavior
 targetSpot speed targetPos e =
