@@ -36,11 +36,7 @@ data GameState = State
   , level :: [[Entity]]
   }
 
-
-
-simplePew :: [Behavior] -> Weapon
-simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 7
-
+  
 initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew [goUp $ faster playerSpeed], isDead = False, radius = 15}
@@ -50,6 +46,21 @@ initialState = State
   , level = [ levelOne, levelTwo ]
   }
   where startHeroPos = (150,1)
+
+simplePew :: [Behavior] -> Weapon
+simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 7
+
+shieldPew :: [Behavior] -> Weapon
+shieldPew behaviours = \ (pos) -> 
+  Entity pos 
+    (behaviours ++
+    [forSteps 32 $ goDown $ slower playerSpeed
+    , circleCW playerSpeed (pi/75) pi -- forSteps 300 $ 
+    , killEntity ])
+   Nothing False 3
+
+killEntity :: Entity -> Entity
+killEntity ent = ent { isDead = True }
 
 spawnRoof :: Float
 spawnRoof = 0.5 * 700 
@@ -223,6 +234,16 @@ updateEntity ent =
 handler :: Event -> GameState -> GameState
 -- New Game // reset
 handler (EventKey (Char 'n') Down _ _) state = initialState
+
+-- Weapons
+handler (EventKey (Char '1') _ _ _) state =
+  state { player = (player state){ weapon = Just $ simplePew [goUp $ faster playerSpeed]} }
+
+handler (EventKey (Char '2') _ _ _) state =
+  state { player = (player state){ weapon = Just $ shieldPew []} }
+
+handler (EventKey (Char '3') _ _ _) state =
+  state { player = (player state){ weapon = Just $ simplePew [goUp $ faster playerSpeed]} }
 -- Shoot
 handler (EventKey (Char 'h') _ _ _) state =
   case (weapon $ player state) of
