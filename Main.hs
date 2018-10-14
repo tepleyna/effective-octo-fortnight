@@ -58,7 +58,7 @@ shieldPew behaviours = \ (pos) ->
   Entity pos
     (behaviours ++
     [forSteps 32 $ goDown $ slower playerSpeed
-    , forSteps 300 $ circleCW playerSpeed (pi/75) pi -- 
+    , forSteps 175 $ circleNew playerSpeed pos -- 
     , killEntity ])
    Nothing False 3
 
