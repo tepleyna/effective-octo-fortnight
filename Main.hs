@@ -22,7 +22,7 @@ faster :: Float -> Float
 faster speed = 1.3 * speed
 
 type Position = (Float, Float)
-type Behavior = Entity -> Entity
+type Behavior = GameState -> Entity -> Entity
 type Weapon = Position -> Entity
 data Entity = Entity
   { position :: Position
@@ -61,8 +61,8 @@ shieldPew behaviours = \ (pos) ->
     , killEntity ])
    Nothing False 3
 
-killEntity :: Entity -> Entity
-killEntity ent = ent { isDead = True }
+killEntity :: Behavior
+killEntity _ ent = ent { isDead = True }
 
 spawnRoof, leftWall, rightWall :: Float
 spawnRoof = 0.5 * fromIntegral height
@@ -74,6 +74,8 @@ levelOne = [
   (mkBasicFoe (0, spawnRoof) [goDown (slower playerSpeed)] 20)
   , (mkBasicFoe (-65, spawnRoof + 25) [goDown (slower playerSpeed)] 20)
   , (mkBasicFoe ( 65,  spawnRoof + 25) [goDown (slower playerSpeed)] 20)
+  , mkFollower (-200, spawnRoof+100)
+  , mkFollower (200, spawnRoof+100)
   ]
 
 levelTwo :: [Entity]
@@ -96,39 +98,49 @@ mkBasicFoe :: Position -> [Behavior] -> Float -> Entity
 mkBasicFoe pos behs size =
   Entity pos behs Nothing False size
 
+mkFollower :: Position -> Entity
+mkFollower spawnPoint =
+  mkBasicFoe spawnPoint [followPlayer $ slower playerSpeed] 10
+
 mkRightCircler :: Float -> Entity
 mkRightCircler height =
-  Entity (rightWall, height)
+  mkBasicFoe (rightWall, height)
     [ forSteps 60 $ goLeft $ faster (faster playerSpeed)
     , circleCCW (playerSpeed) (pi/100) pi
-    ] Nothing False 10
+    ] 15
 
 mkLeftCircler :: Float -> Entity
 mkLeftCircler height =
-  Entity (leftWall, height)
+  mkBasicFoe (leftWall, height)
     [ forSteps 60 $ goRight $ faster (faster playerSpeed)
     , circleCW (playerSpeed) (pi/100) 0
-    ] Nothing False 10
+    ] 15
 
 distance :: Position -> Position -> Float
 distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1)^2 )
 
 nextBehavior :: Behavior
-nextBehavior entity = entity { behaviors = tail $ behaviors entity}
+nextBehavior _ entity = entity { behaviors = tail $ behaviors entity}
 
 addBehavior :: Behavior -> Behavior
-addBehavior behavior entity =
+addBehavior behavior _ entity =
   entity { behaviors = [behavior] ++ behaviors entity}
 
 forSteps :: Int -> Behavior -> Behavior
-forSteps steps behavior =
-  behavior |> nextBehavior |> case steps of
+forSteps steps behavior state =
+  behavior state |> nextBehavior state |> case steps of
     0 -> id
-    n -> addBehavior $ forSteps (n-1) behavior
+    n -> addBehavior (forSteps (n-1) behavior) state
+
+followPlayer :: Float -> Behavior
+followPlayer speed state =
+  targetSpot speed playerPos state
+  where
+    playerPos = position $ player state
 
 targetSpot :: Float -> Position -> Behavior
-targetSpot speed targetPos e =
-  ( goDirection angle speed e )
+targetSpot speed targetPos state e =
+  ( goDirection angle speed state e )
   { behaviors = outBehaviors }
   where
     (x,y) = position e
@@ -142,19 +154,19 @@ targetSpot speed targetPos e =
         else behaviors e
 
 circleCCW :: Float -> Float -> Float -> Behavior
-circleCCW speed turnrate initAngle =
-  goDirection initAngle speed |>
-  nextBehavior |>
-  (addBehavior $ circleCCW speed turnrate (initAngle + turnrate))
+circleCCW speed turnrate initAngle state =
+  goDirection initAngle speed state |>
+  nextBehavior state |>
+  (addBehavior (circleCCW speed turnrate (initAngle + turnrate)) state)
 
 circleCW :: Float -> Float -> Float -> Behavior
-circleCW speed turnrate initAngle =
-  goDirection initAngle speed |>
-  nextBehavior |>
-  (addBehavior $ circleCW speed turnrate (initAngle - turnrate))
+circleCW speed turnrate initAngle state =
+  goDirection initAngle speed state |>
+  nextBehavior state |>
+  (addBehavior (circleCW speed turnrate (initAngle - turnrate)) state)
 
 goDirection :: Float -> Float -> Behavior
-goDirection angle speed entity =
+goDirection angle speed _ entity =
   entity { position = (x+dx, y+dy) }
   where
     (x,y) = position entity
@@ -248,15 +260,15 @@ intersect e1 e2 =
 
 moveThings :: GameState -> GameState
 moveThings state = state {
-  player = updateEntity $ player state
-  , foes = map updateEntity $ foes state
-  , pews = map updateEntity $ pews state }
+  player = updateEntity state $ player state
+  , foes = map (updateEntity state) $ foes state
+  , pews = map (updateEntity state) $ pews state }
 
-updateEntity :: Entity -> Entity
-updateEntity ent =
+updateEntity :: GameState -> Entity -> Entity
+updateEntity state ent =
   if length (behaviors ent) == 0
     then ent
-    else (head $ behaviors ent) ent
+    else (head $ behaviors ent) state ent
 
 handler :: Event -> GameState -> GameState
 -- New Game // reset
