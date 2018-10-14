@@ -51,18 +51,24 @@ initialState = State
   }
   where startHeroPos = (150,1)
 
+spawnRoof :: Float
+spawnRoof = 0.5 * 700 
+
 levelOne :: [Entity]
 levelOne = [  
-  (mkBasicFoe (0, 250) [goDown (slower playerSpeed)] 20) 
-  , (mkBasicFoe (-55, 285) [goDown (slower playerSpeed)] 20)
-  , (mkBasicFoe (55,  285) [goDown (slower playerSpeed)] 20)
+  (mkBasicFoe (0, spawnRoof) [goDown (slower playerSpeed)] 20) 
+  , (mkBasicFoe (-65, spawnRoof + 25) [goDown (slower playerSpeed)] 20)
+  , (mkBasicFoe ( 65,  spawnRoof + 25) [goDown (slower playerSpeed)] 20)
   ]
 
 levelTwo :: [Entity]
 levelTwo = [
-  (mkBasicFoe (0, 0) [forSteps 60 $ goUp playerSpeed, circleCW playerSpeed (pi/10) pi] 70)
-  , (mkBasicFoe (60, 100) [addBehavior $ circleCW playerSpeed (pi / 100) 0] 10)
-  , (mkBasicFoe (200, 500)
+  (mkBasicFoe (0, spawnRoof) [forSteps 155 $ goDown playerSpeed, circleCW playerSpeed (pi/10) pi] 70)
+  , (mkBasicFoe (200, 2 * spawnRoof)
+    [ targetSpot (slower (slower(playerSpeed))) target
+    , circleCW (slower(playerSpeed)) (pi / 100) 180
+    ] 5)
+  , (mkBasicFoe (250, 1.75 * spawnRoof)
     [ targetSpot (slower (slower(playerSpeed))) target
     , circleCW (slower(playerSpeed)) (pi / 100) 180
     ] 5)
@@ -187,9 +193,14 @@ collideThings state = state {
   where
     foePlayer = [foe { isDead = intersect (player state) foe } | foe <- foes state]
     playerDie = any isDead foePlayer
-    foePew    = [ foe { isDead = (isDead foe) || any (intersect foe) (pews state) } | foe <- foePlayer]
-    pewFoe    = [ pew { isDead = any (intersect pew) (foes state) } | pew <- pews state]
+    foePew    = [ foe { isDead = (isDead foe) || (tooFar foe) || any (intersect foe) (pews state) } | foe <- foePlayer]
+    pewFoe    = [ pew { isDead = (tooFar pew) || any (intersect pew) (foes state) } | pew <- pews state]
 
+
+tooFar :: Entity -> Bool
+tooFar ent =
+  (x > 5*spawnRoof) || (x < (-5)*spawnRoof) || (y > 5*spawnRoof) || (y < (-5)*spawnRoof)
+  where (x,y) = position ent
 
 intersect :: Entity -> Entity -> Bool
 intersect e1 e2 =
