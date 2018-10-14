@@ -75,7 +75,7 @@ levelEnd = [  mkBasicFoe (leftWall, spawnRoof + 15) [ goUp 0 ] 1  ]
 
 levelZero :: [Entity]
 levelZero = [
-    (mkBasicFoe (-15, -10) [circleSome (slower playerSpeed) (0,0)] 5) 
+    (mkBasicFoe (-15, -10) [circleNew (slower playerSpeed) (0,0)] 5) 
   ]
 
 levelOne :: [Entity]
