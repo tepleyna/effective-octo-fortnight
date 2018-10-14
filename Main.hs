@@ -7,8 +7,10 @@ import Graphics.Gloss.Interface.Pure.Game
 (|>) = flip (.)
 (<|) = (.)
 
-fps :: Int
+fps, width, height :: Int
 fps = 60
+width = 700
+height = 700
 
 playerSpeed :: Float
 playerSpeed = 2.5
@@ -36,7 +38,7 @@ data GameState = State
   , level :: [[Entity]]
   }
 
-  
+
 initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew [goUp $ faster playerSpeed], isDead = False, radius = 15}
@@ -51,23 +53,25 @@ simplePew :: [Behavior] -> Weapon
 simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 7
 
 shieldPew :: [Behavior] -> Weapon
-shieldPew behaviours = \ (pos) -> 
-  Entity pos 
+shieldPew behaviours = \ (pos) ->
+  Entity pos
     (behaviours ++
     [forSteps 32 $ goDown $ slower playerSpeed
-    , circleCW playerSpeed (pi/75) pi -- forSteps 300 $ 
+    , circleCW playerSpeed (pi/75) pi -- forSteps 300 $
     , killEntity ])
    Nothing False 3
 
 killEntity :: Entity -> Entity
 killEntity ent = ent { isDead = True }
 
-spawnRoof :: Float
-spawnRoof = 0.5 * 700 
+spawnRoof, leftWall, rightWall :: Float
+spawnRoof = 0.5 * fromIntegral height
+rightWall = 0.5 * fromIntegral width
+leftWall = negate rightWall
 
 levelOne :: [Entity]
-levelOne = [  
-  (mkBasicFoe (0, spawnRoof) [goDown (slower playerSpeed)] 20) 
+levelOne = [
+  (mkBasicFoe (0, spawnRoof) [goDown (slower playerSpeed)] 20)
   , (mkBasicFoe (-65, spawnRoof + 25) [goDown (slower playerSpeed)] 20)
   , (mkBasicFoe ( 65,  spawnRoof + 25) [goDown (slower playerSpeed)] 20)
   ]
@@ -83,12 +87,28 @@ levelTwo = [
     [ targetSpot (slower (slower(playerSpeed))) target
     , circleCW (slower(playerSpeed)) (pi / 100) 180
     ] 5)
+  , mkLeftCircler 100
+  , mkRightCircler 100
   ]
   where target = (-10,-10)
 
 mkBasicFoe :: Position -> [Behavior] -> Float -> Entity
 mkBasicFoe pos behs size =
   Entity pos behs Nothing False size
+
+mkRightCircler :: Float -> Entity
+mkRightCircler height =
+  Entity (rightWall, height)
+    [ forSteps 60 $ goLeft $ faster (faster playerSpeed)
+    , circleCCW (playerSpeed) (pi/100) pi
+    ] Nothing False 10
+
+mkLeftCircler :: Float -> Entity
+mkLeftCircler height =
+  Entity (leftWall, height)
+    [ forSteps 60 $ goRight $ faster (faster playerSpeed)
+    , circleCW (playerSpeed) (pi/100) 0
+    ] Nothing False 10
 
 distance :: Position -> Position -> Float
 distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1)^2 )
@@ -121,10 +141,17 @@ targetSpot speed targetPos e =
         then tail $ behaviors e
         else behaviors e
 
+circleCCW :: Float -> Float -> Float -> Behavior
+circleCCW speed turnrate initAngle =
+  goDirection initAngle speed |>
+  nextBehavior |>
+  (addBehavior $ circleCCW speed turnrate (initAngle + turnrate))
+
 circleCW :: Float -> Float -> Float -> Behavior
-circleCW speed turnrate initAngle entity =
-  (goDirection initAngle speed entity)
-  { behaviors = [circleCW speed turnrate (initAngle - turnrate)]}
+circleCW speed turnrate initAngle =
+  goDirection initAngle speed |>
+  nextBehavior |>
+  (addBehavior $ circleCW speed turnrate (initAngle - turnrate))
 
 goDirection :: Float -> Float -> Behavior
 goDirection angle speed entity =
@@ -147,7 +174,7 @@ goLeft :: Float -> Behavior
 goLeft = goDirection pi
 
 window :: Display
-window = InWindow "EffectiveOctoFortnite" (700, 700) (10, 10)
+window = InWindow "EffectiveOctoFortnite" (width, height) (10, 10)
 
 background :: Color
 background = light $ light blue
@@ -181,11 +208,11 @@ update :: Float -> GameState -> GameState
 update ticks state = startLevel $ cleanDeads $ moveThings $ collideThings state
 
 startLevel :: GameState -> GameState
-startLevel state = 
+startLevel state =
   if length (foes state) == 0
-    then state { 
-      foes = head $ level state 
-      , level = tail $ level state 
+    then state {
+      foes = head $ level state
+      , level = tail $ level state
       }
     else state
 
@@ -196,7 +223,7 @@ cleanDeads state = state {
   }
 
 collideThings :: GameState -> GameState
-collideThings state = state { 
+collideThings state = state {
   player = (player state) { isDead = playerDie || isDead (player state)}
   , foes = foePew
   , pews = pewFoe
