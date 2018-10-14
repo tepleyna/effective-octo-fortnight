@@ -58,7 +58,7 @@ shieldPew behaviours = \ (pos) ->
   Entity pos
     (behaviours ++
     [forSteps 32 $ goDown $ slower playerSpeed
-    , circleCW playerSpeed (pi/75) pi -- forSteps 300 $
+    , forSteps 300 $ circleCW playerSpeed (pi/75) pi 
     , killEntity ])
    Nothing False 3
 
@@ -180,7 +180,7 @@ circleNew speed center _ entity =
     theta1= atan2 (x-h) (y-k) --asin $ (x-h) / radius
     newX  = h + radius * (sin $ theta1 + theta2) 
     newY  = k + radius * (cos $ theta1 + theta2)
-    
+
 circleCCW :: Float -> Float -> Float -> Behavior
 circleCCW speed turnrate initAngle state =
   goDirection initAngle speed state |>
