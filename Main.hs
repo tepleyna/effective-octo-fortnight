@@ -45,7 +45,8 @@ initialState = State
   , foes = []
   , pews = []
   , paused = False
-  , level = [ levelOne, levelTwo ]
+  , level = [ levelOne, levelTwo--, levelThree
+    , levelEnd ]
   }
   where startHeroPos = (150,1)
 
@@ -69,6 +70,17 @@ spawnRoof = 0.5 * fromIntegral height
 rightWall = 0.5 * fromIntegral width
 leftWall = negate rightWall
 
+-- levelThree :: [Entity]
+-- levelThree = 
+--   [(mkBasicFoe (200, 2 * spawnRoof)
+--     [ targetSpot (slower (slower(playerSpeed))) (0,0)
+--     , circleCW (slower(playerSpeed)) (pi / 1000) 180
+--     ] 5) 
+--   ]
+
+levelEnd :: [Entity]
+levelEnd = [  mkBasicFoe (leftWall, spawnRoof + 15) [ goUp 0 ] 1  ]
+
 levelOne :: [Entity]
 levelOne = [
   (mkBasicFoe (0, spawnRoof) [goDown (slower playerSpeed)] 20)
@@ -77,6 +89,7 @@ levelOne = [
   , mkFollower (-200, spawnRoof+100)
   , mkFollower (200, spawnRoof+100)
   ]
+
 
 levelTwo :: [Entity]
 levelTwo = [
@@ -195,6 +208,8 @@ render :: GameState -> Picture
 render state
   | isDead $ player state =
     uncurry translate (-300, 0) $ color (dark red) $ text "You died"
+  | (0 == (length $ level state)) =
+    uncurry translate (-300, 0) $ color (dark red) $ text "The End"
   |otherwise =
     pictures pics
   where
