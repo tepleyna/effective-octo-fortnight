@@ -45,7 +45,7 @@ initialState = State
   , foes = []
   , pews = []
   , paused = False
-  , level = [ levelOne, levelTwo--, levelThree
+  , level = [ levelZero, levelOne, levelTwo--, levelThree
     , levelEnd ]
   }
   where startHeroPos = (150,1)
@@ -70,16 +70,13 @@ spawnRoof = 0.5 * fromIntegral height
 rightWall = 0.5 * fromIntegral width
 leftWall = negate rightWall
 
--- levelThree :: [Entity]
--- levelThree = 
---   [(mkBasicFoe (200, 2 * spawnRoof)
---     [ targetSpot (slower (slower(playerSpeed))) (0,0)
---     , circleCW (slower(playerSpeed)) (pi / 1000) 180
---     ] 5) 
---   ]
-
 levelEnd :: [Entity]
 levelEnd = [  mkBasicFoe (leftWall, spawnRoof + 15) [ goUp 0 ] 1  ]
+
+levelZero :: [Entity]
+levelZero = [
+    (mkBasicFoe (-15, -10) [circleSome (slower playerSpeed) (0,0)] 5) 
+  ]
 
 levelOne :: [Entity]
 levelOne = [
@@ -145,6 +142,12 @@ forSteps steps behavior state =
     0 -> id
     n -> addBehavior (forSteps (n-1) behavior) state
 
+circleEnt :: Float -> Behavior
+circleEnt speed state =
+  targetSpot speed entPos state
+  where
+    entPos = position $ player state --TODO
+
 followPlayer :: Float -> Behavior
 followPlayer speed state =
   targetSpot speed playerPos state
@@ -166,6 +169,18 @@ targetSpot speed targetPos state e =
         then tail $ behaviors e
         else behaviors e
 
+circleNew :: Float -> Position -> Behavior
+circleNew speed center _ entity =
+  entity { position = (newX, newY) }
+  where
+    radius= (distance (x,y) (h,k))
+    (x,y) = position entity
+    (h,k) = center
+    theta2= -speed / radius
+    theta1= atan2 (x-h) (y-k) --asin $ (x-h) / radius
+    newX  = h + radius * (sin $ theta1 + theta2) 
+    newY  = k + radius * (cos $ theta1 + theta2)
+    
 circleCCW :: Float -> Float -> Float -> Behavior
 circleCCW speed turnrate initAngle state =
   goDirection initAngle speed state |>
