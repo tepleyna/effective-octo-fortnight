@@ -22,6 +22,12 @@ faster speed = 1.3 * speed
 type Position = (Float, Float)
 type Behavior = Entity -> Entity
 type Weapon = Position -> Entity
+data Entity = Entity
+  { position :: Position
+  , behaviors :: [Behavior]
+  , weapon :: Maybe Weapon
+  , isDead :: Bool
+  , radius :: Float}
 data GameState = State
   { player :: Entity
   , foes :: [Entity]
@@ -29,12 +35,7 @@ data GameState = State
   , paused :: Bool
   , level :: [[Entity]]
   }
-data Entity = Entity
-  { position :: Position
-  , behaviors :: [Behavior]
-  , weapon :: Maybe Weapon
-  , isDead :: Bool
-  , radius :: Float}
+
 
 
 simplePew :: [Behavior] -> Weapon
@@ -43,34 +44,34 @@ simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 7
 initialState :: GameState
 initialState = State
   { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew [goUp $ faster playerSpeed], isDead = False, radius = 15}
-  , foes =
-      [ mkFoe (-20, -100) [forSteps 60 $ goUp playerSpeed, circleCW playerSpeed (pi/10) pi] Nothing 70
-      , mkFoe (-20, -200) [goUp (slower playerSpeed)] Nothing 20
-      , mkFoe (-100,-300) [goUp (slower playerSpeed)] Nothing 20
-      , mkFoe (60,  -300) [goUp (slower playerSpeed)] Nothing 20
-      , mkFoe (60, 100) [addBehavior $ circleCW playerSpeed (pi / 100) 0] Nothing 10
-      , mkFoe (0, 500)
-        [ targetSpot (slower (slower(playerSpeed))) target
-        , circleCW (slower(playerSpeed)) (pi / 100) 180
-        ] Nothing 5
-      ]
+  , foes = []
   , pews = []
   , paused = False
-  , level = []
+  , level = [ levelOne, levelTwo ]
   }
-  where
-    startHeroPos = (150,1)
-    target = (-10,-10)
+  where startHeroPos = (150,1)
 
-mkFoe :: Position -> [Behavior] -> Maybe Weapon -> Float -> Entity
-mkFoe pos behs pew rad =
-  Entity {
-    position = pos
-    , behaviors = behs
-    , weapon = pew
-    , isDead = False
-    , radius = rad
-    }
+levelOne :: [Entity]
+levelOne = [  
+  (mkBasicFoe (0, 250) [goDown (slower playerSpeed)] 20) 
+  , (mkBasicFoe (-55, 285) [goDown (slower playerSpeed)] 20)
+  , (mkBasicFoe (55,  285) [goDown (slower playerSpeed)] 20)
+  ]
+
+levelTwo :: [Entity]
+levelTwo = [
+  (mkBasicFoe (0, 0) [forSteps 60 $ goUp playerSpeed, circleCW playerSpeed (pi/10) pi] 70)
+  , (mkBasicFoe (60, 100) [addBehavior $ circleCW playerSpeed (pi / 100) 0] 10)
+  , (mkBasicFoe (200, 500)
+    [ targetSpot (slower (slower(playerSpeed))) target
+    , circleCW (slower(playerSpeed)) (pi / 100) 180
+    ] 5)
+  ]
+  where target = (-10,-10)
+
+mkBasicFoe :: Position -> [Behavior] -> Float -> Entity
+mkBasicFoe pos behs size =
+  Entity pos behs Nothing False size
 
 distance :: Position -> Position -> Float
 distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1)^2 )
@@ -160,17 +161,26 @@ mkPews state = map
   $ pews state
 
 update :: Float -> GameState -> GameState
-update ticks state = cleanDeads $ moveThings $ collideThings state
+update ticks state = startLevel $ cleanDeads $ moveThings $ collideThings state
+
+startLevel :: GameState -> GameState
+startLevel state = 
+  if length (foes state) == 0
+    then state { 
+      foes = head $ level state 
+      , level = tail $ level state 
+      }
+    else state
 
 cleanDeads :: GameState -> GameState
-cleanDeads state = state
-  { foes = [x | x <- foes state, not (isDead x)]
+cleanDeads state = state {
+  foes = [x | x <- foes state, not (isDead x)]
   , pews = [x | x <- pews state, not (isDead x)]
   }
 
 collideThings :: GameState -> GameState
-collideThings state = state
-  { player = (player state) { isDead = playerDie || isDead (player state)}
+collideThings state = state { 
+  player = (player state) { isDead = playerDie || isDead (player state)}
   , foes = foePew
   , pews = pewFoe
   }
