@@ -51,7 +51,15 @@ initialState = State
   where startHeroPos = (150,1)
 
 simplePew :: [Behavior] -> Weapon
-simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 7
+simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 12
+
+homingPew :: [Behavior] -> Weapon
+homingPew _ = 
+  \ (pos) -> 
+    Entity pos 
+      [forSteps 45 $ followFoe $ faster playerSpeed
+      , goUp $ slower playerSpeed ]
+    Nothing False 5
 
 shieldPew :: [Behavior] -> Weapon
 shieldPew behaviours = \ (pos) ->
@@ -147,6 +155,11 @@ circleEnt speed state =
   targetSpot speed entPos state
   where
     entPos = position $ player state --TODO
+
+followFoe :: Float -> Behavior
+followFoe speed state = 
+  targetSpot speed foePos state
+  where foePos = position $ head $ foes state
 
 followPlayer :: Float -> Behavior
 followPlayer speed state =
@@ -312,7 +325,7 @@ handler (EventKey (Char '2') _ _ _) state =
   state { player = (player state){ weapon = Just $ shieldPew []} }
 
 handler (EventKey (Char '3') _ _ _) state =
-  state { player = (player state){ weapon = Just $ simplePew [goUp $ faster playerSpeed]} }
+  state { player = (player state){ weapon = Just $ homingPew [] } }
 -- Shoot
 handler (EventKey (Char 'h') _ _ _) state =
   case (weapon $ player state) of
