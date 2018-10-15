@@ -23,7 +23,12 @@ faster speed = 1.3 * speed
 
 type Position = (Float, Float)
 type Behavior = GameState -> Entity -> Entity
-type Weapon = Position -> Entity
+type Fire = Position -> Entity
+data Weapon = Weapon
+  { cooldown :: Float
+  , lastFired :: Float
+  , fire :: Fire
+  }
 data Entity = Entity
   { position :: Position
   , behaviors :: [Behavior]
@@ -41,34 +46,46 @@ data GameState = State
 
 initialState :: GameState
 initialState = State
-  { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simplePew [goUp $ faster playerSpeed], isDead = False, radius = 15}
+  { player = Entity { position = startHeroPos, behaviors = [], weapon = Just $ simpleWeapon [goUp $ faster playerSpeed], isDead = False, radius = 15}
   , foes = []
   , pews = []
   , paused = False
-  , level = [ levelZero, levelOne, levelTwo--, levelThree
+  , level = [ levelOne, levelTwo, levelThree
     , levelEnd ]
   }
   where startHeroPos = (150,1)
 
-simplePew :: [Behavior] -> Weapon
-simplePew behaviours = \ (pos) -> Entity pos behaviours Nothing False 12
+simplePew :: [Behavior] -> Fire
+simplePew behaviors = \ (pos) -> Entity pos behaviors Nothing False 12
 
-homingPew :: [Behavior] -> Weapon
-homingPew _ = 
-  \ (pos) -> 
-    Entity pos 
+simpleWeapon :: [Behavior] -> Weapon
+simpleWeapon behaviors = Weapon 10 0 $ simplePew behaviors
+
+foeWeapon :: Weapon
+foeWeapon = Weapon 90 0 $ simplePew [targetPlayer $ faster playerSpeed, killEntity]
+
+homingPew :: Fire
+homingPew =
+  \ (pos) ->
+    Entity pos
       [forSteps 45 $ followFoe $ faster playerSpeed
       , goUp $ slower playerSpeed ]
     Nothing False 5
 
-shieldPew :: [Behavior] -> Weapon
-shieldPew behaviours = \ (pos) ->
+homingWeapon :: Weapon
+homingWeapon = Weapon 60 0 homingPew
+
+shieldPew :: Fire
+shieldPew = \ (pos) ->
   Entity pos
-    (behaviours ++
     [forSteps 32 $ goDown $ slower playerSpeed
-    , forSteps 175 $ circleNew playerSpeed pos -- 
-    , killEntity ])
+    , forSteps 175 $ circleNew playerSpeed pos --
+    , killEntity
+    ]
    Nothing False 3
+
+shieldWeapon :: Weapon
+shieldWeapon = Weapon 10 0 shieldPew
 
 killEntity :: Behavior
 killEntity _ ent = ent { isDead = True }
@@ -83,34 +100,47 @@ levelEnd = [  mkBasicFoe (leftWall, spawnRoof + 15) [ goUp 0 ] 1  ]
 
 levelZero :: [Entity]
 levelZero = [
-    (mkBasicFoe (-15, -10) [circleNew (slower playerSpeed) (0,0)] 5) 
+    (mkBasicFoe (-15, -10) [circleNew (slower playerSpeed) (0,0)] 5)
   ]
 
 levelOne :: [Entity]
-levelOne = [
-  (mkBasicFoe (0, spawnRoof) [goDown (slower playerSpeed)] 20)
-  , (mkBasicFoe (-65, spawnRoof + 25) [goDown (slower playerSpeed)] 20)
-  , (mkBasicFoe ( 65,  spawnRoof + 25) [goDown (slower playerSpeed)] 20)
+levelOne =
+  [ mkBasicFoe (0, spawnRoof) [goDown (slower playerSpeed)] 20
+  , mkBasicFoe (-65, spawnRoof + 25) [goDown (slower playerSpeed)] 20
+  , mkBasicFoe ( 65,  spawnRoof + 25) [goDown (slower playerSpeed)] 20
   , mkFollower (-200, spawnRoof+100)
   , mkFollower (200, spawnRoof+100)
   ]
 
 
 levelTwo :: [Entity]
-levelTwo = [
-  (mkBasicFoe (0, spawnRoof) [forSteps 155 $ goDown playerSpeed, circleCW playerSpeed (pi/10) pi] 70)
-  , (mkBasicFoe (200, 2 * spawnRoof)
+levelTwo =
+  [ mkBasicFoe (0, spawnRoof) [forSteps 155 $ goDown playerSpeed, circleCW playerSpeed (pi/10) pi] 70
+  , mkBasicFoe (200, 2 * spawnRoof)
     [ targetSpot (slower (slower(playerSpeed))) target
     , circleCW (slower(playerSpeed)) (pi / 100) 180
-    ] 5)
-  , (mkBasicFoe (250, 1.75 * spawnRoof)
+    ] 5
+  , mkBasicFoe (250, 1.75 * spawnRoof)
     [ targetSpot (slower (slower(playerSpeed))) target
     , circleCW (slower(playerSpeed)) (pi / 100) 180
-    ] 5)
+    ] 5
   , mkLeftCircler 100
   , mkRightCircler 100
   ]
   where target = (-10,-10)
+
+levelThree :: [Entity]
+levelThree = [ mkShooter foeWeapon (200, spawnRoof)
+             , mkShooter foeWeapon (-200, spawnRoof)
+             , mkShooter foeWeapon (0, spawnRoof * 1.5)
+             , mkLeftCircler 0
+             , mkRightCircler 0
+             , mkLeftCircler 100
+             , mkRightCircler 100
+             ]
+
+arm :: Weapon -> Entity -> Entity
+arm newWeapon entity = entity { weapon = Just newWeapon }
 
 mkBasicFoe :: Position -> [Behavior] -> Float -> Entity
 mkBasicFoe pos behs size =
@@ -133,6 +163,10 @@ mkLeftCircler height =
     [ forSteps 60 $ goRight $ faster (faster playerSpeed)
     , circleCW (playerSpeed) (pi/100) 0
     ] 15
+
+mkShooter :: Weapon -> Position -> Entity
+mkShooter weapon pos =
+  arm weapon $ mkBasicFoe pos [ forSteps 60 $ goDown playerSpeed ] 40
 
 distance :: Position -> Position -> Float
 distance (x1,y1) (x2,y2) = sqrt( (x2 - x1)^2 + (y2-y1)^2 )
@@ -157,7 +191,7 @@ circleEnt speed state =
     entPos = position $ player state --TODO
 
 followFoe :: Float -> Behavior
-followFoe speed state = 
+followFoe speed state =
   targetSpot speed foePos state
   where foePos = position $ head $ foes state
 
@@ -166,6 +200,9 @@ followPlayer speed state =
   targetSpot speed playerPos state
   where
     playerPos = position $ player state
+
+targetPlayer :: Float -> Behavior
+targetPlayer speed state = nextBehavior state |> addBehavior (targetSpot speed $ position (player state)) state
 
 targetSpot :: Float -> Position -> Behavior
 targetSpot speed targetPos state e =
@@ -191,7 +228,7 @@ circleNew speed center _ entity =
     (h,k) = center
     theta2= -speed / radius
     theta1= atan2 (x-h) (y-k) --asin $ (x-h) / radius
-    newX  = h + radius * (sin $ theta1 + theta2) 
+    newX  = h + radius * (sin $ theta1 + theta2)
     newY  = k + radius * (cos $ theta1 + theta2)
 
 circleCCW :: Float -> Float -> Float -> Behavior
@@ -260,7 +297,37 @@ mkPews state = map
   $ pews state
 
 update :: Float -> GameState -> GameState
-update ticks state = startLevel $ cleanDeads $ moveThings $ collideThings state
+update ticks = foesFire <| reloadWeapons <| startLevel <| cleanDeads <| moveThings <| collideThings
+
+reloadWeapons :: GameState -> GameState
+reloadWeapons state =
+  state { player = reloadEntity (player state)
+        , foes = map reloadEntity (foes state)
+        }
+
+reloadEntity :: Entity -> Entity
+reloadEntity entity = entity {  weapon = pure reloadWeapon <*> (weapon entity) }
+
+reloadWeapon :: Weapon -> Weapon
+reloadWeapon weapon =
+  case lastFired weapon of
+    0 -> weapon
+    n -> Weapon (cooldown weapon) (n-1) (fire weapon)
+
+foesFire :: GameState -> GameState
+foesFire state = state { foes = foldl1 (++) $ map foeFire $ foes state }
+
+foeFire :: Entity -> [Entity]
+foeFire foe =
+  case lastFired curWeapon of
+    0 -> [ foe { weapon = Just $ Weapon (cooldown curWeapon) (cooldown curWeapon) (fire curWeapon) }
+         , fire curWeapon $ position foe
+         ]
+    n -> [foe]
+  where
+    curWeapon = case weapon foe of
+      Nothing -> Weapon 0 999 $ simplePew []
+      Just val -> val
 
 startLevel :: GameState -> GameState
 startLevel state =
@@ -319,19 +386,19 @@ handler (EventKey (Char 'n') Down _ _) state = initialState
 
 -- Weapons
 handler (EventKey (Char '1') _ _ _) state =
-  state { player = (player state){ weapon = Just $ simplePew [goUp $ faster playerSpeed]} }
+  state { player = (player state){ weapon = Just $ simpleWeapon [goUp $ faster playerSpeed]} }
 
 handler (EventKey (Char '2') _ _ _) state =
-  state { player = (player state){ weapon = Just $ shieldPew []} }
+  state { player = (player state) { weapon = Just $ shieldWeapon } }
 
 handler (EventKey (Char '3') _ _ _) state =
-  state { player = (player state){ weapon = Just $ homingPew [] } }
+  state { player = (player state) { weapon = Just $ homingWeapon } }
 -- Shoot
 handler (EventKey (Char 'h') _ _ _) state =
   case (weapon $ player state) of
       Nothing   -> state
-      Just val  -> state { pews = (pews state) ++
-          [val pewSpawn]}
+      Just weapon  -> state { pews = (pews state) ++
+          [fire weapon pewSpawn]}
   where
     (x,y) = position $ player state
     pewSpawn = (x, y + (radius $ player state))
